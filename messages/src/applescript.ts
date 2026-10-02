@@ -19,7 +19,7 @@ export function sanitize(input: string): string {
  */
 export function runAppleScript(script: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    execFile("osascript", ["-e", script], { maxBuffer: 10 * 1024 * 1024 }, (error, stdout, stderr) => {
+    execFile("osascript", ["-e", script], { timeout: 30000, maxBuffer: 2 * 1024 * 1024 }, (error, stdout, stderr) => {
       if (error) {
         reject(new Error(`AppleScript error: ${stderr || error.message}`));
         return;

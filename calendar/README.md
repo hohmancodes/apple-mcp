@@ -1,5 +1,7 @@
 # @griches/apple-calendar-mcp
 
+For this fork’s private home Mac bridge, use the [root setup](../README.md). The `@griches` npm releases do not include these changes. This app server supports `--read-only`, which removes every write tool.
+
 An [MCP](https://modelcontextprotocol.io) server that gives AI assistants access to Apple Calendar on macOS. Read operations use EventKit directly for fast, reliable access; write operations use AppleScript.
 
 ## Quick Start
@@ -94,7 +96,7 @@ Add to your `claude_desktop_config.json`:
 ## Requirements
 
 - **macOS 13+**
-- **Node.js** 18+
+- **Node.js** 24
 
 ## License
 

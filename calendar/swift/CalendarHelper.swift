@@ -4,13 +4,10 @@ import Foundation
 // MARK: - JSON Helpers
 
 func jsonString(_ value: String) -> String {
-    let escaped = value
-        .replacingOccurrences(of: "\\", with: "\\\\")
-        .replacingOccurrences(of: "\"", with: "\\\"")
-        .replacingOccurrences(of: "\n", with: "\\n")
-        .replacingOccurrences(of: "\r", with: "\\r")
-        .replacingOccurrences(of: "\t", with: "\\t")
-    return "\"\(escaped)\""
+    // Foundation escapes all JSON control characters, including those in app content.
+    let data = try! JSONSerialization.data(withJSONObject: [value])
+    let array = String(data: data, encoding: .utf8)!
+    return String(array.dropFirst().dropLast())
 }
 
 func jsonStringOrNull(_ value: String?) -> String {
@@ -19,10 +16,7 @@ func jsonStringOrNull(_ value: String?) -> String {
 }
 
 func exitWithError(_ message: String) -> Never {
-    let escaped = message
-        .replacingOccurrences(of: "\\", with: "\\\\")
-        .replacingOccurrences(of: "\"", with: "\\\"")
-    print("{\"error\":\"\(escaped)\"}")
+    print("{\"error\":\(jsonString(message))}")
     exit(1)
 }
 
@@ -138,6 +132,9 @@ func listEvents(store: EKEventStore, from: Date, to: Date, calendarName: String?
         if matched.isEmpty {
             exitWithError("Calendar not found: \(name)")
         }
+        if matched.count != 1 {
+            exitWithError("Calendar name is ambiguous. Give the allowed calendar a unique name.")
+        }
         calendars = matched
     }
 
@@ -154,6 +151,9 @@ func searchEvents(store: EKEventStore, query: String, calendarName: String?) {
         let matched = store.calendars(for: .event).filter { $0.title == name }
         if matched.isEmpty {
             exitWithError("Calendar not found: \(name)")
+        }
+        if matched.count != 1 {
+            exitWithError("Calendar name is ambiguous. Give the allowed calendar a unique name.")
         }
         calendars = matched
     }
@@ -179,6 +179,9 @@ func getEvent(store: EKEventStore, title: String, calendarName: String?) {
         let matched = store.calendars(for: .event).filter { $0.title == name }
         if matched.isEmpty {
             exitWithError("Calendar not found: \(name)")
+        }
+        if matched.count != 1 {
+            exitWithError("Calendar name is ambiguous. Give the allowed calendar a unique name.")
         }
         calendars = matched
     }
@@ -218,17 +221,15 @@ func main() {
     let store = EKEventStore()
     let status = EKEventStore.authorizationStatus(for: .event)
 
-    if status != .authorized {
-        if #available(macOS 14.0, *) {
-            if status != .fullAccess {
-                guard requestAccess(store: store) else {
-                    exitWithError("Calendar access denied. Please grant access in System Settings > Privacy & Security > Calendars.")
-                }
-            }
-        } else {
-            guard requestAccess(store: store) else {
-                exitWithError("Calendar access denied. Please grant access in System Preferences > Security & Privacy > Calendars.")
-            }
+    let hasAccess: Bool
+    if #available(macOS 14.0, *) {
+        hasAccess = status == .fullAccess
+    } else {
+        hasAccess = status == .authorized
+    }
+    if !hasAccess {
+        guard requestAccess(store: store) else {
+            exitWithError("Calendar access denied. Grant access in System Settings > Privacy & Security > Calendars.")
         }
     }
 

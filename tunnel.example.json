@@ -1,0 +1,7 @@
+{
+  "tunnelId": "tunnel_YOUR_ID",
+  "clientPath": "/opt/homebrew/bin/tunnel-client",
+  "keychainService": "personal-apple-mcp-tunnel",
+  "keychainAccount": "personal-apple-mcp",
+  "mode": "mock"
+}

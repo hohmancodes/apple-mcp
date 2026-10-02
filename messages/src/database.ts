@@ -157,23 +157,31 @@ export interface Message {
  * Get messages for a specific chat, ordered by date descending.
  * Optionally filter by date range (ISO 8601 strings like '2025-01-01' or '2025-03-15T14:00:00').
  */
+export function localBoundary(input: string): Date {
+  const date = new Date(/^\d{4}-\d{2}-\d{2}$/.test(input) ? `${input}T00:00:00` : input);
+  if (Number.isNaN(date.getTime())) throw new Error("Invalid date.");
+  return date;
+}
+
 export function getChatMessages(chatId: string, limit: number = 100, fromDate?: string, toDate?: string): Message[] {
-  const db = openDb();
+  return readChatMessages(openDb(), chatId, limit, fromDate, toDate);
+}
+
+/** Read from the supplied database and close it. Tests supply a synthetic in-memory database. */
+export function readChatMessages(db: DatabaseSync, chatId: string, limit: number = 100, fromDate?: string, toDate?: string): Message[] {
   try {
     let dateFilter = "";
-    const params: (string | number)[] = [chatId];
+    const params: (string | number | bigint)[] = [chatId];
 
     if (fromDate) {
       // Convert ISO date to Apple timestamp (nanoseconds since 2001-01-01)
-      const fromUnix = new Date(fromDate).getTime() / 1000;
-      const fromApple = (fromUnix - APPLE_EPOCH_OFFSET) * 1e9;
+      const fromApple = (BigInt(localBoundary(fromDate).getTime()) - BigInt(APPLE_EPOCH_OFFSET) * 1000n) * 1000000n;
       dateFilter += " AND m.date >= ?";
       params.push(fromApple);
     }
     if (toDate) {
-      const toUnix = new Date(toDate).getTime() / 1000;
-      const toApple = (toUnix - APPLE_EPOCH_OFFSET) * 1e9;
-      dateFilter += " AND m.date <= ?";
+      const toApple = (BigInt(localBoundary(toDate).getTime()) - BigInt(APPLE_EPOCH_OFFSET) * 1000n) * 1000000n;
+      dateFilter += " AND m.date < ?";
       params.push(toApple);
     }
 

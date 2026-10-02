@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { randomUUID } from "node:crypto";
 
 export function sanitize(input: string): string {
   return input
@@ -11,7 +12,7 @@ export function sanitize(input: string): string {
 
 export function runAppleScript(script: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    execFile("osascript", ["-e", script], { maxBuffer: 10 * 1024 * 1024 }, (error, stdout, stderr) => {
+    execFile("osascript", ["-e", script], { timeout: 30000, maxBuffer: 2 * 1024 * 1024 }, (error, stdout, stderr) => {
       if (error) {
         reject(new Error(`AppleScript error: ${stderr || error.message}`));
         return;
@@ -21,8 +22,8 @@ export function runAppleScript(script: string): Promise<string> {
   });
 }
 
-const FIELD_DELIM = "|||";
-const RECORD_DELIM = "<<<>>>";
+const FIELD_DELIM = `__field_${randomUUID()}__`;
+const RECORD_DELIM = `__record_${randomUUID()}__`;
 
 export async function listMailboxes(): Promise<{ name: string; account: string; unreadCount: number }[]> {
   const script = `
@@ -62,7 +63,12 @@ export async function listMessages(
   const script = unreadOnly
     ? `
 tell application "Mail"
-  set mb to mailbox "${safeMb}" of account "${safeAcct}"
+  set matchingAccounts to (accounts whose name is "${safeAcct}")
+  if (count of matchingAccounts) is not 1 then error "Mail account is missing or ambiguous"
+  set theAccount to item 1 of matchingAccounts
+  set matchingMailboxes to (mailboxes of theAccount whose name is "${safeMb}")
+  if (count of matchingMailboxes) is not 1 then error "Mailbox is missing or ambiguous"
+  set mb to item 1 of matchingMailboxes
   set targetMsgs to messages of mb whose read status is false
   set msgCount to count of targetMsgs
   set maxCount to ${maxMessages}
@@ -78,7 +84,12 @@ tell application "Mail"
 end tell`
     : `
 tell application "Mail"
-  set mb to mailbox "${safeMb}" of account "${safeAcct}"
+  set matchingAccounts to (accounts whose name is "${safeAcct}")
+  if (count of matchingAccounts) is not 1 then error "Mail account is missing or ambiguous"
+  set theAccount to item 1 of matchingAccounts
+  set matchingMailboxes to (mailboxes of theAccount whose name is "${safeMb}")
+  if (count of matchingMailboxes) is not 1 then error "Mailbox is missing or ambiguous"
+  set mb to item 1 of matchingMailboxes
   set msgCount to count of messages of mb
   set maxCount to ${maxMessages}
   if msgCount < maxCount then set maxCount to msgCount
@@ -121,7 +132,12 @@ export async function getMessage(
   const safeAcct = sanitize(accountName);
   const script = `
 tell application "Mail"
-  set mb to mailbox "${safeMb}" of account "${safeAcct}"
+  set matchingAccounts to (accounts whose name is "${safeAcct}")
+  if (count of matchingAccounts) is not 1 then error "Mail account is missing or ambiguous"
+  set theAccount to item 1 of matchingAccounts
+  set matchingMailboxes to (mailboxes of theAccount whose name is "${safeMb}")
+  if (count of matchingMailboxes) is not 1 then error "Mailbox is missing or ambiguous"
+  set mb to item 1 of matchingMailboxes
   set matchedMsgs to (every message of mb whose id is ${messageId})
   if (count of matchedMsgs) is 0 then
     error "Message not found with id: ${messageId}"
@@ -157,9 +173,9 @@ end tell`;
     sender: parts[2]?.trim() || "",
     date: parts[3]?.trim() || "",
     isRead: parts[4]?.trim() === "true",
-    content: parts[5] || "",
-    toRecipients: parts[6] ? parts[6].split(",").map((s) => s.trim()).filter(Boolean) : [],
-    ccRecipients: parts[7] ? parts[7].split(",").map((s) => s.trim()).filter(Boolean) : [],
+    content: parts.slice(5, -2).join(RECORD_DELIM),
+    toRecipients: parts.at(-2) ? parts.at(-2)!.split(",").map((s) => s.trim()).filter(Boolean) : [],
+    ccRecipients: parts.at(-1) ? parts.at(-1)!.split(",").map((s) => s.trim()).filter(Boolean) : [],
   };
 }
 
@@ -181,7 +197,12 @@ export async function searchMessages(
     script = `
 tell application "Mail"
   set results to {}
-  set mb to mailbox "${safeMb}" of account "${safeAcct}"
+  set matchingAccounts to (accounts whose name is "${safeAcct}")
+  if (count of matchingAccounts) is not 1 then error "Mail account is missing or ambiguous"
+  set theAccount to item 1 of matchingAccounts
+  set matchingMailboxes to (mailboxes of theAccount whose name is "${safeMb}")
+  if (count of matchingMailboxes) is not 1 then error "Mailbox is missing or ambiguous"
+  set mb to item 1 of matchingMailboxes
   set matchedMsgs to (every message of mb whose ${field} contains "${safeQuery}")
   set maxCount to ${maxResults}
   set msgCount to count of matchedMsgs

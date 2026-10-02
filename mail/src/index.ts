@@ -4,6 +4,8 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import * as applescript from "./applescript.js";
 
+const readOnly = process.argv.includes("--read-only");
+
 const server = new McpServer({
   name: "apple-mail",
   version: "1.0.0",
@@ -92,33 +94,35 @@ server.registerTool(
   }
 );
 
-// ---- send_email ----
-server.registerTool(
-  "send_email",
-  {
-    description: "Send an email via Apple Mail",
-    inputSchema: z.object({
-      to: z.string().describe("Recipient email address (comma-separated for multiple recipients)"),
-      subject: z.string().describe("Email subject"),
-      body: z.string().describe("Email body text"),
-      cc: z.string().optional().describe("CC recipient email address (comma-separated for multiple)"),
-      bcc: z.string().optional().describe("BCC recipient email address (comma-separated for multiple)"),
-      from_account: z.string().optional().describe("Account to send from (uses default if omitted)"),
-    }),
-  },
-  async ({ to, subject, body, cc, bcc, from_account }) => {
-    try {
-      const result = await applescript.sendEmail(to, subject, body, {
-        cc,
-        bcc,
-        from: from_account,
-      });
-      return { content: [{ type: "text", text: result }] };
-    } catch (err) {
-      return { content: [{ type: "text", text: `Error: ${(err as Error).message}` }], isError: true };
+if (!readOnly) {
+  // ---- send_email ----
+  server.registerTool(
+    "send_email",
+    {
+      description: "Send an email via Apple Mail",
+      inputSchema: z.object({
+        to: z.string().describe("Recipient email address (comma-separated for multiple recipients)"),
+        subject: z.string().describe("Email subject"),
+        body: z.string().describe("Email body text"),
+        cc: z.string().optional().describe("CC recipient email address (comma-separated for multiple)"),
+        bcc: z.string().optional().describe("BCC recipient email address (comma-separated for multiple)"),
+        from_account: z.string().optional().describe("Account to send from (uses default if omitted)"),
+      }),
+    },
+    async ({ to, subject, body, cc, bcc, from_account }) => {
+      try {
+        const result = await applescript.sendEmail(to, subject, body, {
+          cc,
+          bcc,
+          from: from_account,
+        });
+        return { content: [{ type: "text", text: result }] };
+      } catch (err) {
+        return { content: [{ type: "text", text: `Error: ${(err as Error).message}` }], isError: true };
+      }
     }
-  }
-);
+  );
+}
 
 // ---- get_unread_count ----
 server.registerTool(
@@ -140,93 +144,101 @@ server.registerTool(
   }
 );
 
-// ---- move_message ----
-server.registerTool(
-  "move_message",
-  {
-    description: "Move an email message to a different mailbox",
-    inputSchema: z.object({
-      message_id: z.number().describe("ID of the message to move"),
-      from_mailbox: z.string().describe("Source mailbox name"),
-      from_account: z.string().describe("Source account name"),
-      to_mailbox: z.string().describe("Destination mailbox name"),
-      to_account: z.string().optional().describe("Destination account (same as source if omitted)"),
-    }),
-  },
-  async ({ message_id, from_mailbox, from_account, to_mailbox, to_account }) => {
-    try {
-      const result = await applescript.moveMessage(message_id, from_mailbox, from_account, to_mailbox, to_account);
-      return { content: [{ type: "text", text: result }] };
-    } catch (err) {
-      return { content: [{ type: "text", text: `Error: ${(err as Error).message}` }], isError: true };
+if (!readOnly) {
+  // ---- move_message ----
+  server.registerTool(
+    "move_message",
+    {
+      description: "Move an email message to a different mailbox",
+      inputSchema: z.object({
+        message_id: z.number().describe("ID of the message to move"),
+        from_mailbox: z.string().describe("Source mailbox name"),
+        from_account: z.string().describe("Source account name"),
+        to_mailbox: z.string().describe("Destination mailbox name"),
+        to_account: z.string().optional().describe("Destination account (same as source if omitted)"),
+      }),
+    },
+    async ({ message_id, from_mailbox, from_account, to_mailbox, to_account }) => {
+      try {
+        const result = await applescript.moveMessage(message_id, from_mailbox, from_account, to_mailbox, to_account);
+        return { content: [{ type: "text", text: result }] };
+      } catch (err) {
+        return { content: [{ type: "text", text: `Error: ${(err as Error).message}` }], isError: true };
+      }
     }
-  }
-);
+  );
+}
 
-// ---- mark_read ----
-server.registerTool(
-  "mark_read",
-  {
-    description: "Mark an email message as read or unread",
-    inputSchema: z.object({
-      message_id: z.number().describe("ID of the message"),
-      mailbox: z.string().describe("Mailbox the message is in"),
-      account: z.string().describe("Account the mailbox belongs to"),
-      read: z.boolean().describe("True to mark as read, false to mark as unread"),
-    }),
-  },
-  async ({ message_id, mailbox, account, read }) => {
-    try {
-      const result = await applescript.markRead(message_id, mailbox, account, read);
-      return { content: [{ type: "text", text: result }] };
-    } catch (err) {
-      return { content: [{ type: "text", text: `Error: ${(err as Error).message}` }], isError: true };
+if (!readOnly) {
+  // ---- mark_read ----
+  server.registerTool(
+    "mark_read",
+    {
+      description: "Mark an email message as read or unread",
+      inputSchema: z.object({
+        message_id: z.number().describe("ID of the message"),
+        mailbox: z.string().describe("Mailbox the message is in"),
+        account: z.string().describe("Account the mailbox belongs to"),
+        read: z.boolean().describe("True to mark as read, false to mark as unread"),
+      }),
+    },
+    async ({ message_id, mailbox, account, read }) => {
+      try {
+        const result = await applescript.markRead(message_id, mailbox, account, read);
+        return { content: [{ type: "text", text: result }] };
+      } catch (err) {
+        return { content: [{ type: "text", text: `Error: ${(err as Error).message}` }], isError: true };
+      }
     }
-  }
-);
+  );
+}
 
-// ---- delete_message ----
-server.registerTool(
-  "delete_message",
-  {
-    description: "Delete an email message (moves to trash)",
-    inputSchema: z.object({
-      message_id: z.number().describe("ID of the message to delete"),
-      mailbox: z.string().describe("Mailbox the message is in"),
-      account: z.string().describe("Account the mailbox belongs to"),
-    }),
-  },
-  async ({ message_id, mailbox, account }) => {
-    try {
-      const result = await applescript.deleteMessage(message_id, mailbox, account);
-      return { content: [{ type: "text", text: result }] };
-    } catch (err) {
-      return { content: [{ type: "text", text: `Error: ${(err as Error).message}` }], isError: true };
+if (!readOnly) {
+  // ---- delete_message ----
+  server.registerTool(
+    "delete_message",
+    {
+      description: "Delete an email message (moves to trash)",
+      inputSchema: z.object({
+        message_id: z.number().describe("ID of the message to delete"),
+        mailbox: z.string().describe("Mailbox the message is in"),
+        account: z.string().describe("Account the mailbox belongs to"),
+      }),
+    },
+    async ({ message_id, mailbox, account }) => {
+      try {
+        const result = await applescript.deleteMessage(message_id, mailbox, account);
+        return { content: [{ type: "text", text: result }] };
+      } catch (err) {
+        return { content: [{ type: "text", text: `Error: ${(err as Error).message}` }], isError: true };
+      }
     }
-  }
-);
+  );
+}
 
-// ---- flag_message ----
-server.registerTool(
-  "flag_message",
-  {
-    description: "Flag or unflag an email message",
-    inputSchema: z.object({
-      message_id: z.number().describe("ID of the message to flag/unflag"),
-      mailbox: z.string().describe("Mailbox the message is in"),
-      account: z.string().describe("Account the mailbox belongs to"),
-      flagged: z.boolean().describe("True to flag, false to unflag"),
-    }),
-  },
-  async ({ message_id, mailbox, account, flagged }) => {
-    try {
-      const result = await applescript.flagMessage(message_id, mailbox, account, flagged);
-      return { content: [{ type: "text", text: result }] };
-    } catch (err) {
-      return { content: [{ type: "text", text: `Error: ${(err as Error).message}` }], isError: true };
+if (!readOnly) {
+  // ---- flag_message ----
+  server.registerTool(
+    "flag_message",
+    {
+      description: "Flag or unflag an email message",
+      inputSchema: z.object({
+        message_id: z.number().describe("ID of the message to flag/unflag"),
+        mailbox: z.string().describe("Mailbox the message is in"),
+        account: z.string().describe("Account the mailbox belongs to"),
+        flagged: z.boolean().describe("True to flag, false to unflag"),
+      }),
+    },
+    async ({ message_id, mailbox, account, flagged }) => {
+      try {
+        const result = await applescript.flagMessage(message_id, mailbox, account, flagged);
+        return { content: [{ type: "text", text: result }] };
+      } catch (err) {
+        return { content: [{ type: "text", text: `Error: ${(err as Error).message}` }], isError: true };
+      }
     }
-  }
-);
+  );
+}
 
 // ---- Start server ----
 async function main() {

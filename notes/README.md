@@ -1,5 +1,7 @@
 # @griches/apple-notes-mcp
 
+For this fork’s private home Mac bridge, use the [root setup](../README.md). The `@griches` npm releases do not include these changes. This app server supports `--read-only`, which removes every write tool.
+
 An [MCP](https://modelcontextprotocol.io) server that gives AI assistants access to Apple Notes on macOS via AppleScript.
 
 ## Quick Start
@@ -50,7 +52,7 @@ Add to your `claude_desktop_config.json`:
 ## Requirements
 
 - **macOS** (uses AppleScript)
-- **Node.js** 18+
+- **Node.js** 24
 
 ## License
 

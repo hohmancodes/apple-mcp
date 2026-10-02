@@ -29,24 +29,26 @@ server.registerTool(
   }
 );
 
-// ---- create_folder ----
-server.registerTool(
-  "create_folder",
-  {
-    description: "Create a new folder in Apple Notes",
-    inputSchema: z.object({
-      name: z.string().describe("Name of the folder to create"),
-    }),
-  },
-  async ({ name }) => {
-    try {
-      const result = await applescript.createFolder(name);
-      return { content: [{ type: "text", text: result }] };
-    } catch (err) {
-      return { content: [{ type: "text", text: `Error: ${(err as Error).message}` }], isError: true };
+if (!readOnly) {
+  // ---- create_folder ----
+  server.registerTool(
+    "create_folder",
+    {
+      description: "Create a new folder in Apple Notes",
+      inputSchema: z.object({
+        name: z.string().describe("Name of the folder to create"),
+      }),
+    },
+    async ({ name }) => {
+      try {
+        const result = await applescript.createFolder(name);
+        return { content: [{ type: "text", text: result }] };
+      } catch (err) {
+        return { content: [{ type: "text", text: `Error: ${(err as Error).message}` }], isError: true };
+      }
     }
-  }
-);
+  );
+}
 
 // ---- list_notes ----
 server.registerTool(
@@ -87,47 +89,51 @@ server.registerTool(
   }
 );
 
-// ---- create_note ----
-server.registerTool(
-  "create_note",
-  {
-    description: "Create a new note in a specified Apple Notes folder",
-    inputSchema: z.object({
-      title: z.string().describe("Title of the new note"),
-      body: z.string().describe("HTML body content of the note"),
-      folder: z.string().describe("Folder to create the note in"),
-    }),
-  },
-  async ({ title, body, folder }) => {
-    try {
-      const result = await applescript.createNote(title, body, folder);
-      return { content: [{ type: "text", text: result }] };
-    } catch (err) {
-      return { content: [{ type: "text", text: `Error: ${(err as Error).message}` }], isError: true };
+if (!readOnly) {
+  // ---- create_note ----
+  server.registerTool(
+    "create_note",
+    {
+      description: "Create a new note in a specified Apple Notes folder",
+      inputSchema: z.object({
+        title: z.string().describe("Title of the new note"),
+        body: z.string().describe("HTML body content of the note"),
+        folder: z.string().describe("Folder to create the note in"),
+      }),
+    },
+    async ({ title, body, folder }) => {
+      try {
+        const result = await applescript.createNote(title, body, folder);
+        return { content: [{ type: "text", text: result }] };
+      } catch (err) {
+        return { content: [{ type: "text", text: `Error: ${(err as Error).message}` }], isError: true };
+      }
     }
-  }
-);
+  );
+}
 
-// ---- update_note ----
-server.registerTool(
-  "update_note",
-  {
-    description: "Update the body of an existing note",
-    inputSchema: z.object({
-      title: z.string().describe("Title of the note to update"),
-      body: z.string().describe("New HTML body content for the note"),
-      folder: z.string().optional().describe("Folder the note is in (searches all folders if omitted)"),
-    }),
-  },
-  async ({ title, body, folder }) => {
-    try {
-      const result = await applescript.updateNote(title, body, folder);
-      return { content: [{ type: "text", text: result }] };
-    } catch (err) {
-      return { content: [{ type: "text", text: `Error: ${(err as Error).message}` }], isError: true };
+if (!readOnly) {
+  // ---- update_note ----
+  server.registerTool(
+    "update_note",
+    {
+      description: "Update the body of an existing note",
+      inputSchema: z.object({
+        title: z.string().describe("Title of the note to update"),
+        body: z.string().describe("New HTML body content for the note"),
+        folder: z.string().optional().describe("Folder the note is in (searches all folders if omitted)"),
+      }),
+    },
+    async ({ title, body, folder }) => {
+      try {
+        const result = await applescript.updateNote(title, body, folder);
+        return { content: [{ type: "text", text: result }] };
+      } catch (err) {
+        return { content: [{ type: "text", text: `Error: ${(err as Error).message}` }], isError: true };
+      }
     }
-  }
-);
+  );
+}
 
 if (!readOnly) {
   // ---- delete_note ----
@@ -178,47 +184,51 @@ if (!readOnly) {
   );
 }
 
-// ---- move_note ----
-server.registerTool(
-  "move_note",
-  {
-    description: "Move a note from one folder to another",
-    inputSchema: z.object({
-      title: z.string().describe("Title of the note to move"),
-      from_folder: z.string().describe("Source folder name"),
-      to_folder: z.string().describe("Destination folder name"),
-    }),
-  },
-  async ({ title, from_folder, to_folder }) => {
-    try {
-      const result = await applescript.moveNote(title, from_folder, to_folder);
-      return { content: [{ type: "text", text: result }] };
-    } catch (err) {
-      return { content: [{ type: "text", text: `Error: ${(err as Error).message}` }], isError: true };
+if (!readOnly) {
+  // ---- move_note ----
+  server.registerTool(
+    "move_note",
+    {
+      description: "Move a note from one folder to another",
+      inputSchema: z.object({
+        title: z.string().describe("Title of the note to move"),
+        from_folder: z.string().describe("Source folder name"),
+        to_folder: z.string().describe("Destination folder name"),
+      }),
+    },
+    async ({ title, from_folder, to_folder }) => {
+      try {
+        const result = await applescript.moveNote(title, from_folder, to_folder);
+        return { content: [{ type: "text", text: result }] };
+      } catch (err) {
+        return { content: [{ type: "text", text: `Error: ${(err as Error).message}` }], isError: true };
+      }
     }
-  }
-);
+  );
+}
 
-// ---- append_to_note ----
-server.registerTool(
-  "append_to_note",
-  {
-    description: "Append HTML content to an existing note without replacing its body",
-    inputSchema: z.object({
-      title: z.string().describe("Title of the note to append to"),
-      content: z.string().describe("HTML content to append to the note"),
-      folder: z.string().optional().describe("Folder the note is in (searches all folders if omitted)"),
-    }),
-  },
-  async ({ title, content, folder }) => {
-    try {
-      const result = await applescript.appendToNote(title, content, folder);
-      return { content: [{ type: "text", text: result }] };
-    } catch (err) {
-      return { content: [{ type: "text", text: `Error: ${(err as Error).message}` }], isError: true };
+if (!readOnly) {
+  // ---- append_to_note ----
+  server.registerTool(
+    "append_to_note",
+    {
+      description: "Append HTML content to an existing note without replacing its body",
+      inputSchema: z.object({
+        title: z.string().describe("Title of the note to append to"),
+        content: z.string().describe("HTML content to append to the note"),
+        folder: z.string().optional().describe("Folder the note is in (searches all folders if omitted)"),
+      }),
+    },
+    async ({ title, content, folder }) => {
+      try {
+        const result = await applescript.appendToNote(title, content, folder);
+        return { content: [{ type: "text", text: result }] };
+      } catch (err) {
+        return { content: [{ type: "text", text: `Error: ${(err as Error).message}` }], isError: true };
+      }
     }
-  }
-);
+  );
+}
 
 // ---- search_notes ----
 server.registerTool(
