@@ -5,6 +5,8 @@ import { z } from "zod";
 import * as applescript from "./applescript.js";
 import * as database from "./database.js";
 
+const readOnly = process.argv.includes("--read-only");
+
 const server = new McpServer({
   name: "apple-messages",
   version: "1.0.0",
@@ -72,26 +74,28 @@ server.registerTool(
   }
 );
 
-// ---- send_message ----
-server.registerTool(
-  "send_message",
-  {
-    description: "Send an iMessage or SMS to a phone number or email address",
-    inputSchema: z.object({
-      to: z.string().describe("Phone number or email address of the recipient"),
-      text: z.string().describe("Message text to send"),
-      service: z.enum(["iMessage", "SMS"]).optional().describe("Service to use (default iMessage)"),
-    }),
-  },
-  async ({ to, text, service }) => {
-    try {
-      const result = await applescript.sendMessage(to, text, service);
-      return { content: [{ type: "text", text: result }] };
-    } catch (err) {
-      return { content: [{ type: "text", text: `Error: ${(err as Error).message}` }], isError: true };
+if (!readOnly) {
+  // ---- send_message ----
+  server.registerTool(
+    "send_message",
+    {
+      description: "Send an iMessage or SMS to a phone number or email address",
+      inputSchema: z.object({
+        to: z.string().describe("Phone number or email address of the recipient"),
+        text: z.string().describe("Message text to send"),
+        service: z.enum(["iMessage", "SMS"]).optional().describe("Service to use (default iMessage)"),
+      }),
+    },
+    async ({ to, text, service }) => {
+      try {
+        const result = await applescript.sendMessage(to, text, service);
+        return { content: [{ type: "text", text: result }] };
+      } catch (err) {
+        return { content: [{ type: "text", text: `Error: ${(err as Error).message}` }], isError: true };
+      }
     }
-  }
-);
+  );
+}
 
 // ---- get_chat_participants ----
 server.registerTool(

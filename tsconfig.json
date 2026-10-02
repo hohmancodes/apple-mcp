@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "types": ["node"],
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "rootDir": ".",
+    "outDir": "build",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "sourceMap": true
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts", "notes/src/**/*.ts", "mail/src/**/*.ts", "messages/src/**/*.ts", "calendar/src/**/*.ts"],
+  "exclude": ["node_modules", "build", "notes/tests", "messages/tests"]
+}

@@ -5,7 +5,7 @@ const BINARY = join(__dirname, "calendar-helper");
 
 function runHelper(args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
-    execFile(BINARY, args, { maxBuffer: 10 * 1024 * 1024 }, (error, stdout, stderr) => {
+    execFile(BINARY, args, { timeout: 30000, maxBuffer: 2 * 1024 * 1024 }, (error, stdout, stderr) => {
       if (error) {
         // Try to parse JSON error from stdout
         try {
@@ -28,7 +28,17 @@ function runHelper(args: string[]): Promise<string> {
  * Handles: "March 9, 2026", "9 March 2026", "2026-03-09",
  * "March 15, 2025 at 2:00 PM", "Monday, 9 March 2026", etc.
  */
-function dateToISO(input: string): string {
+export function dateToISO(input: string): string {
+  // Date-only inputs mean midnight on the home Mac, never midnight in UTC.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(input)) {
+    const check = new Date(`${input}T00:00:00Z`);
+    if (Number.isNaN(check.getTime()) || check.toISOString().slice(0, 10) !== input) throw new Error("Invalid date.");
+    return `${input}T00:00:00`;
+  }
+  if (/^\d{4}-\d{2}-\d{2}T/.test(input)) {
+    if (Number.isNaN(new Date(input).getTime())) throw new Error("Invalid date.");
+    return input;
+  }
   // Strip day names like "Monday, "
   const cleaned = input.replace(/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),?\s*/i, "");
 

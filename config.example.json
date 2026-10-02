@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "notes": [{ "account": "YOUR NOTES ACCOUNT", "folder": "YOUR NOTES FOLDER" }],
+  "mail": [{ "account": "YOUR MAIL ACCOUNT", "mailbox": "INBOX" }],
+  "calendars": ["YOUR CALENDAR"],
+  "messageChats": ["YOUR CHAT ID"],
+  "limits": { "maxResults": 25, "maxWindowDays": 31, "maxResponseBytes": 65536 }
+}

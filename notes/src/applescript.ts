@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { randomUUID } from "node:crypto";
 
 /**
  * Escape a string for safe embedding inside an AppleScript double-quoted string.
@@ -19,7 +20,7 @@ export function sanitize(input: string): string {
  */
 export function runAppleScript(script: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    execFile("osascript", ["-e", script], { maxBuffer: 10 * 1024 * 1024 }, (error, stdout, stderr) => {
+    execFile("osascript", ["-e", script], { timeout: 30000, maxBuffer: 2 * 1024 * 1024 }, (error, stdout, stderr) => {
       if (error) {
         reject(new Error(`AppleScript error: ${stderr || error.message}`));
         return;
@@ -33,8 +34,40 @@ export function runAppleScript(script: string): Promise<string> {
 // AppleScript template functions
 // ---------------------------------------------------------------------------
 
-const FIELD_DELIM = "|||";
-const RECORD_DELIM = "<<<>>>";
+const FIELD_DELIM = `__field_${randomUUID()}__`;
+const RECORD_DELIM = `__record_${randomUUID()}__`;
+
+function boundedLimit(limit: number): number {
+  if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new Error("Invalid result limit.");
+  return limit;
+}
+
+// Resolve inside one account. Fail closed if names are not unique.
+function folderScope(folder: string, account?: string): string {
+  const accountScope = account ? `
+  set matchingAccounts to (accounts whose name is "${sanitize(account)}")
+  if (count of matchingAccounts) is not 1 then error "Notes account is missing or ambiguous"
+  set theAccount to item 1 of matchingAccounts
+  set matchingFolders to (folders of theAccount whose name is "${sanitize(folder)}")` : `
+  set matchingFolders to (folders whose name is "${sanitize(folder)}")`;
+  return `${accountScope}
+  if (count of matchingFolders) is not 1 then error "Notes folder is missing or ambiguous"
+  set theFolder to item 1 of matchingFolders`;
+}
+
+export async function getNoteById(noteId: string, folder: string, account: string) {
+  const script = `
+tell application "Notes"
+  ${folderScope(folder, account)}
+  set matches to (notes of theFolder whose id is "${sanitize(noteId)}")
+  if (count of matches) is not 1 then error "Note not found in selected folder"
+  set n to item 1 of matches
+  return (name of n) & "${FIELD_DELIM}" & (id of n) & "${FIELD_DELIM}" & (body of n) & "${FIELD_DELIM}" & (creation date of n as text) & "${FIELD_DELIM}" & (modification date of n as text)
+end tell`;
+  const parts = (await runAppleScript(script)).split(FIELD_DELIM);
+  if (parts.length < 5) throw new Error("Invalid Notes response.");
+  return { title: parts[0], id: parts[1], body: parts.slice(2, -2).join(FIELD_DELIM), creationDate: parts.at(-2), modificationDate: parts.at(-1) };
+}
 
 export async function listFolders(): Promise<{ name: string }[]> {
   const script = `
@@ -72,13 +105,16 @@ end tell`;
   return runAppleScript(script);
 }
 
-export async function listNotes(folder: string): Promise<{ title: string; id: string; creationDate: string; modificationDate: string }[]> {
-  const safeFolder = sanitize(folder);
+export async function listNotes(folder: string, limit: number = 100, account?: string): Promise<{ title: string; id: string; creationDate: string; modificationDate: string }[]> {
+  const scope = folderScope(folder, account);
   const script = `
 tell application "Notes"
+  ${scope}
   set noteList to {}
-  set theFolder to folder "${safeFolder}"
+  set resultCount to 0
   repeat with n in notes of theFolder
+    if resultCount >= ${boundedLimit(limit)} then exit repeat
+    set resultCount to resultCount + 1
     set noteId to id of n
     set noteTitle to name of n
     set noteCreated to creation date of n as text
@@ -221,7 +257,7 @@ end tell`;
   return runAppleScript(script);
 }
 
-export async function searchNotes(query: string, folder?: string): Promise<{ title: string; folder: string; id: string }[]> {
+export async function searchNotes(query: string, folder?: string, limit: number = 100, account?: string): Promise<{ title: string; folder: string; id: string }[]> {
   const safeQuery = sanitize(query);
   let script: string;
   if (folder) {
@@ -229,8 +265,12 @@ export async function searchNotes(query: string, folder?: string): Promise<{ tit
     script = `
 tell application "Notes"
   set results to {}
-  set matchedNotes to (notes of folder "${safeFolder}" whose name contains "${safeQuery}" or body contains "${safeQuery}")
+  ${folderScope(folder, account)}
+  set matchedNotes to (notes of theFolder whose name contains "${safeQuery}" or body contains "${safeQuery}")
+  set resultCount to 0
   repeat with n in matchedNotes
+    if resultCount >= ${boundedLimit(limit)} then exit repeat
+    set resultCount to resultCount + 1
     set noteTitle to name of n
     set noteId to id of n
     set end of results to noteTitle & "${FIELD_DELIM}" & noteId & "${FIELD_DELIM}" & "${safeFolder}"
